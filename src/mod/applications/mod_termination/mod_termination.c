@@ -2579,7 +2579,7 @@ SWITCH_STANDARD_APP(switch_termination_app)
 				vox_term_id = atoi(resbuf);
                                 first_equip_id = strdup(resbuf);
 				
-				sql = switch_mprintf("SELECT concat(B.sm_ip,':',sm_port), A.`zone_id`,A.`media_id` FROM `vca_term_equipment_mapping` A, vca_server_mapping B WHERE A.`term_id`='%d' AND B.sm_id=A.server_id AND sm_default = 'Y' limit 1",vox_term_id);
+				sql = switch_mprintf("SELECT concat(B.sm_ip,':',sm_port), A.`zone_id`,A.`media_id` FROM `vca_term_equipment_mapping` A, vca_server_mapping B WHERE A.`term_id`='%d' AND B.server_id=A.server_id AND sm_default = 'Y' limit 1",vox_term_id);
 				
 				switch_execute_sql_callback(globals.mutex, sql, switch_term_server_data, &SipServer);
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-TE] : SIP Termination Equipment [ %d ] Default SIP Server Data SQL  :\n %s\n", vox_term_id, sql);
@@ -2687,7 +2687,7 @@ SWITCH_STANDARD_APP(switch_termination_app)
 					struct __sip_server SipServer;
 					memset(&SipServer, 0, sizeof(SipServer));
 
-					sql = switch_mprintf("SELECT concat(B.sm_ip,':',sm_port), A.`zone_id`,A.`media_id` FROM `vca_term_equipment_mapping` A, vca_server_mapping B WHERE A.`term_id`='%d' AND B.sm_id=A.server_id AND sm_default = 'Y' limit 1",atoi(term_ids[i]));
+					sql = switch_mprintf("SELECT concat(B.sm_ip,':',sm_port), A.`zone_id`,A.`media_id` FROM `vca_term_equipment_mapping` A, vca_server_mapping B WHERE A.`term_id`='%d' AND B.server_id=A.server_id AND sm_default = 'Y' limit 1",atoi(term_ids[i]));
 					
 					switch_execute_sql_callback(globals.mutex, sql, switch_term_server_data, &SipServer);
 					switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-TE] : SIP Termination Equipment [ %d ] Default SIP Server Data SQL  :\n %s\n", atoi(term_ids[i]), sql);
