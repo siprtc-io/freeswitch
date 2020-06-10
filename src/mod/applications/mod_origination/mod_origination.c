@@ -621,7 +621,7 @@ SWITCH_STANDARD_APP(switch_origination_app)
 	switch_channel_export_variable(channel, "vox_origination_equipment_media_proxy_mode", media_proxy_mode, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
 	switch_channel_export_variable(channel, "vox_origination_equipment_capacity_gp_id", capacity_gp_id, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
 
-	if(!strcmp(media_proxy_mode, "FLOW_AROUND")) {
+	if(!strcmp(media_proxy_mode, "FLOW_AROUND") || !strcmp(media_proxy_mode, "1")) {
 		switch_channel_set_variable(channel, "vox_bypass_media", "true");              /*! Enable bypass media in FreeSWITCH */
 	} else {
 		switch_channel_set_variable(channel, "vox_bypass_media", "false");             /*! Disable bypass media in FreeSWITCH */
