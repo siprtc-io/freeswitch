@@ -658,7 +658,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	return SWITCH_DIALPEER_SUCCESS;
 }	
 	
-static int dialpeer_function(char *dp_id,char *dp_cgp_id,char *dp_route_hunt,char *source_number,char *destination_number, char *source_billing_number,char *destination_billing_number,char *dp_equip_type, int dp_max_cps,int dp_max_calls, switch_core_session_t *session, int flag ) 
+static int dialpeer_function(char *dp_id,char *dp_cgp_id,char *dp_route_hunt,char *source_number,char *destination_number, char *source_billing_number,char *destination_billing_number,char *dp_equip_type, int dp_max_cps,int dp_max_calls, switch_core_session_t *session, int flag ,char *dp_balancing_method) 
 {
 // 	switch_dial_peer_handler_st *dp = (switch_dial_peer_handler_st *)ptr;
 // 	switch_core_session_t *session = dp->session;
@@ -687,7 +687,7 @@ static int dialpeer_function(char *dp_id,char *dp_cgp_id,char *dp_route_hunt,cha
 	char *tmp_num = NULL;                                                        /*! Dialpeer Temp variable */ 
 	char *sip_equipment_type = strdup(dp_equip_type);
 	char *sip_term_source_number = NULL, *sip_term_destination_number = NULL;
-	char *dp_balancing_method = NULL;
+	//char *dp_balancing_method = NULL;
 	regex_master_st regex_master;                                                /*! Dialpeer regex information structure variable */ 
 	int dp_cgp_mc = 0;                                                           /*! Dialpeer Capacity Group Max CPS */
 	int dp_cgp_cps = 0;                                                          /*! Dialpeer Capacity Group Max Call */
@@ -1569,7 +1569,7 @@ SWITCH_STANDARD_APP(switch_dialpeer_app)
 	for(i = 0; i < dialpeerTotal ; i++) {
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DP ROUTING PROCESS\n");
 		
-		if (dialpeer_function(dp_handler.dp_id[i], dp_handler.dp_cgp_id[i], dp_handler.dp_route_hunt[i], dp_handler.source_number[i], dp_handler.destination_number[i], dp_handler.source_billing_number[i], dp_handler.destination_billing_number[i], dp_handler.sip_equipment_type[i], dp_handler.dp_max_cps[i], dp_handler.dp_max_calls[i], session, 0 ) == SWITCH_DIALPEER_SUCCESS) {
+		if (dialpeer_function(dp_handler.dp_id[i], dp_handler.dp_cgp_id[i], dp_handler.dp_route_hunt[i], dp_handler.source_number[i], dp_handler.destination_number[i], dp_handler.source_billing_number[i], dp_handler.destination_billing_number[i], dp_handler.sip_equipment_type[i], dp_handler.dp_max_cps[i], dp_handler.dp_max_calls[i], session, 0, dp_handler.dp_balancing_method[i]) == SWITCH_DIALPEER_SUCCESS) {
 			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DP Matched and Routing Done.\n");
 			break;
 		}
