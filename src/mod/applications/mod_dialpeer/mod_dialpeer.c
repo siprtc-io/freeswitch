@@ -86,6 +86,7 @@ static struct {
 	char *odbc_dsn;                           /*! Dialpeer application odbc-dsn name */
 	char *dbname;                             /*! Dialpeer application dbname */
 	char *profile;                            /*! Dialpeer application hiredis profile name */
+	int32_t count;
 	switch_mutex_t *mutex;                    /*! Dialpeer mutex object */
 	switch_memory_pool_t *pool;               /*! Dialpeer memory pool object */
 } globals;
@@ -97,18 +98,22 @@ static struct {
 struct switch_dial_peer_handler
 {
 	switch_core_session_t *session;             /*! Switch channel session */
-	char *dp_id;                                /*! Dialpeer ID */
-	char *dp_balancing_method;                  /*! Dialpeer Balancing Method */
-	char *source_number;                        /*! Dialpeer Source Number */
-	char *destination_number;                   /*! Dialpeer Destination Number */
-	char *source_billing_number;                /*! Dialpeer Billing Source Number */
-	char *destination_billing_number;           /*! Dialpeer Billing Destination Number */
-	char *sip_equipment_type;                   /*! Dialpeer SIP Equipment Type */     
-	char *sip_equipment_ids;                    /*! Dialpeer SIP Redirect Equipment ID */  
-	char *termination_equipment_ids;            /*! Dialpeer SIP Termination Equipment ID */
-	char *sip_term_destination_number;          /*! Dialpeer Sending Destination Number To termination application */
-	char *sip_term_source_number;               /*! Dialpeer Sending Source Number To termination application */
-	int flag;
+	char *dp_id[56];                                /*! Dialpeer ID */
+	char *dp_balancing_method[56];                  /*! Dialpeer Balancing Method */
+	char *source_number[56];                        /*! Dialpeer Source Number */
+	char *destination_number[56];                   /*! Dialpeer Destination Number */
+	char *source_billing_number[56];                /*! Dialpeer Billing Source Number */
+	char *destination_billing_number[56];           /*! Dialpeer Billing Destination Number */
+	char *sip_equipment_type[56];                   /*! Dialpeer SIP Equipment Type */     
+	char *sip_equipment_ids[56];                    /*! Dialpeer SIP Redirect Equipment ID */  
+	char *termination_equipment_ids[56];            /*! Dialpeer SIP Termination Equipment ID */
+	char *sip_term_destination_number[56];          /*! Dialpeer Sending Destination Number To termination application */
+	char *sip_term_source_number[56];               /*! Dialpeer Sending Source Number To termination application */
+	int flag[56];
+	int dp_max_cps[56];                                             /*! Dialpeer Max CPS */
+	int dp_max_calls[56];
+	char *dp_cgp_id[56];
+	char *dp_route_hunt[56];
 };
 typedef struct switch_dial_peer_handler switch_dial_peer_handler_st;
 
@@ -628,30 +633,61 @@ static int switch_regex_callback(void *ptr, int argc, char **argv, char **col)
 static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **col) 
 {
 	switch_dial_peer_handler_st *dp = (switch_dial_peer_handler_st *)ptr;
-	switch_core_session_t *session = dp->session;
+	int index = 0;	
+	
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : Dial Peers (Addressable Call Endpoint)\n");
+	for( index = 0; index < argc; index++ ) {
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : %s : %s\n", col[index], argv[index]);
+	}
+	
+	dp->dp_id[globals.count] = strdup(argv[0]);
+	dp->dp_max_cps[globals.count] = atoi(argv[1]);                                              /*! Dialpeer Max CPS */
+	dp->dp_max_calls[globals.count] = atoi(argv[2]);                                            /*! Dialpeer Max Calls */
+	dp->dp_cgp_id[globals.count] = strdup(argv[4]);  
+	dp->sip_equipment_type[globals.count] = strdup(argv[5]); 
+	dp->dp_route_hunt[globals.count] = strdup(argv[6]); 
+	
+	dp->dp_balancing_method[globals.count] = strdup(argv[3]);
+	dp->source_number[globals.count] =  strdup(dp->source_number[0]);
+	dp->destination_number[globals.count] = strdup(dp->destination_number[0]);  
+	dp->source_billing_number[globals.count] = strdup(dp->source_billing_number[0]);  
+	dp->destination_billing_number[globals.count] = strdup(dp->destination_billing_number[0]);
+	
+	globals.count++;
+	
+	return SWITCH_DIALPEER_SUCCESS;
+}	
+	
+static int dialpeer_function(char *dp_id,char *dp_cgp_id,char *dp_route_hunt,char *source_number,char *destination_number, char *source_billing_number,char *destination_billing_number,char *dp_equip_type, int dp_max_cps,int dp_max_calls, switch_core_session_t *session, int flag ) 
+{
+// 	switch_dial_peer_handler_st *dp = (switch_dial_peer_handler_st *)ptr;
+// 	switch_core_session_t *session = dp->session;
 
 	/**
 	 * @var dialpeer variables declaration.
 	 */
 	
-	int index = 0;                                                               /*! Count value */
-	int dp_max_cps = atoi(argv[1]);                                              /*! Dialpeer Max CPS */
-	int dp_max_calls = atoi(argv[2]);                                            /*! Dialpeer Max Calls */
+// 	int index = 0;                                                               /*! Count value */
+// 	int dp_max_cps = atoi(dp->dp_max_cps);                                              /*! Dialpeer Max CPS */
+// 	int dp_max_calls = atoi(dp->dp_max_calls);                                            /*! Dialpeer Max Calls */
 // 	int dp_cgp_mc = atoi(argv[5]);                                               /*! Dialpeer Capacity Group Max CPS */
 // 	int dp_cgp_cps = atoi(argv[6]);                                              /*! Dialpeer Capacity Group Max Call */
-	char *dp_id = argv[0];                                                       /*! Dialpeer ID */
-	char *dp_cgp_id = argv[4];                                                   /*! Dialpeer Capacity Group ID */
-	char *dp_route_hunt = strdup(argv[6]);                                       /*! Dialpeer Route Hant status */
+// 	char *dp_id = strdup(dp->dp_id);                                                       /*! Dialpeer ID */
+// 	char *dp_cgp_id = strdup(dp->dp_cgp_id);                                                 /*! Dialpeer Capacity Group ID */
+// 	char *dp_route_hunt = strdup(dp->dp_route_hunt);                                       /*! Dialpeer Route Hant status */
 	char *sql = NULL;                                                            /*! Dialpeer SQL */
 	char *regex_status = NULL;                                                   /*! Dialpeer Regex Status */
-	char *source_number = strdup(dp->source_number);                             /*! Dialpeer Source Number */
-	char *destination_number = strdup(dp->destination_number);                   /*! Dialpeer Destination Number */
-	char *source_billing_number = strdup(dp->source_billing_number);             /*! Dialpeer Source Billing Number */
-	char *destination_billing_number = strdup(dp->destination_billing_number);   /*! Dialpeer Destination Billing Number */
+// 	char *source_number = strdup(dp->source_number);                             /*! Dialpeer Source Number */
+// 	char *destination_number = strdup(dp->destination_number);                   /*! Dialpeer Destination Number */
+// 	char *source_billing_number = strdup(dp->source_billing_number);             /*! Dialpeer Source Billing Number */
+// 	char *destination_billing_number = strdup(dp->destination_billing_number);   /*! Dialpeer Destination Billing Number */
 	char *capacity_group_mc_idname = NULL;                                       /*! Dialpeer Capacity Group MAX Call Key */
-	char *dp_equip_type = NULL;                                                  /*! Dialpeer SIP Equipment Type */
+// 	char *dp_equip_type = NULL;                                                  /*! Dialpeer SIP Equipment Type */
 	char result[50] = "";                                                        /*! Dialpeer SQL Result */  
 	char *tmp_num = NULL;                                                        /*! Dialpeer Temp variable */ 
+	char *sip_equipment_type = strdup(dp_equip_type);
+	char *sip_term_source_number = NULL, *sip_term_destination_number = NULL;
+	char *dp_balancing_method = NULL;
 	regex_master_st regex_master;                                                /*! Dialpeer regex information structure variable */ 
 	int dp_cgp_mc = 0;                                                           /*! Dialpeer Capacity Group Max CPS */
 	int dp_cgp_cps = 0;                                                          /*! Dialpeer Capacity Group Max Call */
@@ -663,18 +699,18 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	switch_channel_t *channel = switch_core_session_get_channel(session);
 	
 	// dial peer id 
-	dp->dp_id = strdup(argv[0]);
+// 	dp_id = strdup(argv[0]);
 	
 	// dial peer balancing method
-	dp->dp_balancing_method = strdup(argv[3]);
-	dp->flag = 0; 
+// 	dp_balancing_method = strdup(argv[3]);
+// 	flag = 0; 
 	
 	
-	if(!zstr(argv[5]) && atoi(argv[5]) > 0) {
+	if(!zstr(sip_equipment_type) && atoi(sip_equipment_type) > 0) {
 		char msgbuf[10] = "";
 		char *switchargv[3] = {0};                                          /* string tokenizing */
 	  
-		sql = switch_mprintf("SELECT concat(cpg_max_calls,',',cpg_max_calls_sec) as capacity_gp_data FROM  vca_capacity_group WHERE cpg_id = '%s' AND cpg_status='Y'",argv[5]);
+		sql = switch_mprintf("SELECT concat(cpg_max_calls,',',cpg_max_calls_sec) as capacity_gp_data FROM  vca_capacity_group WHERE cpg_id = '%s' AND cpg_status='Y'",sip_equipment_type);
 		
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : Proceed To Get DIALPEER Equipment Capacity Group Data SQL :: \n%s\n",sql);
 		switch_execute_sql2str(NULL, sql, msgbuf, sizeof(msgbuf));
@@ -701,8 +737,8 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 * @Section Setting channel variables for CDR report.
 	 */
 	
-	switch_channel_set_variable(channel, "vox_dp_id", dp->dp_id);
-	switch_channel_export_variable(channel, "vox_dp_id",dp->dp_id, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
+	switch_channel_set_variable(channel, "vox_dp_id", dp_id);
+	switch_channel_export_variable(channel, "vox_dp_id",dp_id, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
 
 	/**
 	 * @Section session validation.
@@ -717,8 +753,8 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 * @Section Query <CALLING STORE PROCEDURE TO Validate DIALPEER SCHEDULER >
 	 */
 	
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : proceed to validate DIALPEER [ %s ] in schedule time.\n", argv[0]);
-	sql = switch_mprintf("CALL `GetDialPeerStatus`('%s');", argv[0]);
+// 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : proceed to validate DIALPEER [ %s ] in schedule time.\n", argv[0]);
+	sql = switch_mprintf("CALL `GetDialPeerStatus`('%s');", dp_id);
 	switch_execute_sql2str(NULL, sql, result, sizeof(result));
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : Check DIALPEER Schedule Time SQL : \n%s\n", sql);
 	switch_safe_free(sql);
@@ -727,9 +763,9 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 * @Section Checking <dialpeer> is in cuurent schedule or not ? 
 	 */
 	
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Schedule Status is [ %s ].\n", argv[0], result);
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Schedule Status is [ %s ].\n", dp_id, result);
 	if(zstr(result) || !strcmp(result, "FAIL")) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : DIALPEER [ %s ] is not in schedule time so skip it.\n", argv[0]);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : DIALPEER [ %s ] is not in schedule time so skip it.\n", dp_id);
 		
 		/**
 		 * @Section Checking DP routing hunt is set or not --> <Y> means get another dialpeer and  <N> means Do not check another DP.
@@ -747,26 +783,26 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 * @Section Checking DP EQUIPMENT TYPE is valide --> <SIP Termination> and  <SIP Redirect>
 	 */
 	
-	if(zstr(argv[5])) {
+	if(zstr(sip_equipment_type)) {
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : DIALPEER Termination Type is not set, So system will not allow this dial peer\n");
 		return SWITCH_DIALPEER_SUCCESS;
 	}
 	
 	//copy equipment type
-	dp_equip_type = strdup(argv[5]);
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DIALPEER [ %s ] has Termination Equipment Type is [ %s ]\n", dp->dp_id, dp_equip_type);
+// 	dp_equip_type = strdup(sip_equipment_type);
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DIALPEER [ %s ] has Termination Equipment Type is [ %s ]\n", dp_id, dp_equip_type);
 
 	/**
 	 * @Section Log on console <dialpeer information>
 	 */
 	
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : %s\n", line);
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : ============ DIALPEER INFORMATION ============\n");
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : %s\n", line);
-	
-	for(index = 0; index < argc ; index++) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : %s : %s\n", col[index], argv[index]);
-	}
+// 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : %s\n", line);
+// 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : ============ DIALPEER INFORMATION ============\n");
+// 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : %s\n", line);
+// 	
+// 	for(index = 0; index < argc ; index++) {
+// 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : %s : %s\n", col[index], argv[index]);
+// 	}
 
 	/**
 	 * @var dialpeer <regex structure variable>
@@ -778,7 +814,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 * @Query Getting Dialpeer <Regex strings> from MySQL Database. 
 	 */
 	
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : proceed To Get DIALPEER [ %s ] regex information.\n", dp->dp_id);
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : proceed To Get DIALPEER [ %s ] regex information.\n", dp_id);
 	sql = switch_mprintf("SELECT regex_type,IF((regex_type='CHANGE_DESTINATION' OR regex_type='CHANGE_SOURCE' OR regex_type='CHANGE_BILL_SOURCE' OR  regex_type='CHANGE_BILL_DESTINATION'), group_concat(regex_string SEPARATOR '|'), group_concat(regex_string SEPARATOR '\\\\|')) as regex_string FROM `vca_regex_master` WHERE regex_equip_id='%s' AND `regex_equip_type`='DIAL' GROUP BY regex_type",dp_id);
 	
 	/**
@@ -797,15 +833,15 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 * @Section Source-Destination Numbers of DP
 	 */
 	
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Source Number [ %s ] For DIALPEER [ %s ].\n", source_number, dp->dp_id);
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Destination Number [ %s ] For DIALPEER [ %s ]\n", destination_number, dp->dp_id);
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Source Number [ %s ] For DIALPEER [ %s ].\n", source_number, dp_id);
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Destination Number [ %s ] For DIALPEER [ %s ]\n", destination_number, dp_id);
 	
 	/**
 	 * @Section Checking Source Number <disallow regex> on FreeSWITCH Server is regex is available for disallow source number.
 	 */
 	
 	if(!zstr(regex_master.disallow_source)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Source Number [ %s ] Disallow Regex [ %s ]\n", dp->dp_id, source_number, regex_master.disallow_source);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Source Number [ %s ] Disallow Regex [ %s ]\n", dp_id, source_number, regex_master.disallow_source);
 		
 		/**
 		 * @Section Checking Source Number <disallow> ---> on failed <true> ---> on success <false>
@@ -816,7 +852,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : proceed for another DIALPEER if there is ?\n");
 			return SWITCH_DIALPEER_SUCCESS;
 		}
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp->dp_id, regex_status);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp_id, regex_status);
 		  
 		/**
 		 * @Section on-failed checking go for next DP or not ?
@@ -829,7 +865,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 			
 			// routing hunt is true means next dp if available
 			if(!strcasecmp(dp_route_hunt,"Y") ) {
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : DIALPEER [ %s ] has routing is set to yes, so system will not search another dial peer and call should be hangup.\n", dp->dp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : DIALPEER [ %s ] has routing is set to yes, so system will not search another dial peer and call should be hangup.\n", dp_id);
 				return SWITCH_DIALPEER_FAILED;
 			} 
 			
@@ -847,7 +883,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	
 	// Dialpeer Source Number Disallow Regex is not set, so system will not chcek it
 	else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Source Number [ %s ] Disallow Regex is not set, So system will not check it.\n", dp->dp_id, source_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Source Number [ %s ] Disallow Regex is not set, So system will not check it.\n", dp_id, source_number);
 	}
 
 	/**
@@ -855,23 +891,23 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 */
 	
 	if(!zstr(regex_master.allow_source)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Source Number [ %s ] allow Regex [ %s ].\n", dp->dp_id, source_number, regex_master.allow_source);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Source Number [ %s ] allow Regex [ %s ].\n", dp_id, source_number, regex_master.allow_source);
 	
 		/**
 		 * @Section Checking Source Number <allow> ---> on failed <false> ---> on success <true>
 		 */
 		
 		regex_status = switch_allow_regex(session, channel, regex_master.allow_source, source_number);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp->dp_id, regex_status);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp_id, regex_status);
 		
 		// failed regex
 		if(!strcmp(regex_status, "false")) {
-			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : Source Number [ %s ] Allow Regex [ %s ] is failed for DIALPEER [ %s ]\n",source_number, regex_master.allow_source, dp->dp_id);
+			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : Source Number [ %s ] Allow Regex [ %s ] is failed for DIALPEER [ %s ]\n",source_number, regex_master.allow_source, dp_id);
 			switch_safe_free(regex_status);
 			
 			// routing hunt is true means next dp if available
 			if(!strcasecmp(dp_route_hunt,"Y") ) {
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : DIALPEER [ %s ] has routing is set to yes, so system will not search another dial peer and call should be hangup.\n", dp->dp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : DIALPEER [ %s ] has routing is set to yes, so system will not search another dial peer and call should be hangup.\n", dp_id);
 				return SWITCH_DIALPEER_FAILED;
 			} 
 			
@@ -889,7 +925,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	
 	// Dialpeer Source Number allow Regex is not set, so system will not chcek it
 	else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Source Number [ %s ] allow Regex is not set, So system will not check it.\n", dp->dp_id, source_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Source Number [ %s ] allow Regex is not set, So system will not check it.\n", dp_id, source_number);
 	}
 	
 	/**
@@ -897,21 +933,21 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 */
 	
 	if(!zstr(regex_master.disallow_destination)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Destination Number [ %s ] Disallow Regex [ %s ]\n", dp->dp_id, destination_number, regex_master.disallow_destination);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Destination Number [ %s ] Disallow Regex [ %s ]\n", dp_id, destination_number, regex_master.disallow_destination);
 	
 		/**
 		 * @Section Checking Destination Number is match in disallow <regex> if <matched than do not allow it>
 		 */
 		
 		regex_status = switch_disallow_regex(session, channel, regex_master.disallow_destination, destination_number);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp->dp_id, regex_status);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp_id, regex_status);
 		
 		/**
 		 * @Section validate Destination Number <true means do not allow this number> and <false means allow this number>
 		 */
 		
 		if(!strcmp(regex_status, "true")) {
-			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : Destination Number [ %s ] Disallow Regex [ %s ] is failed for DIALPEER [ %s ]\n", destination_number, regex_master.disallow_destination, dp->dp_id);
+			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : Destination Number [ %s ] Disallow Regex [ %s ] is failed for DIALPEER [ %s ]\n", destination_number, regex_master.disallow_destination, dp_id);
 			switch_safe_free(regex_status);
 			
 			/**
@@ -919,11 +955,11 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 			 */
 			
 			if(!strcasecmp(dp_route_hunt,"Y") ) {// DP Route Hunt is Enable
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp->dp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp_id);
 			  
 				return SWITCH_DIALPEER_FAILED;
 			} else { // DP Route Hunt is Disable
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Disable.\n", dp->dp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Disable.\n", dp_id);
 				return SWITCH_DIALPEER_SUCCESS;
 			}
 		}
@@ -931,7 +967,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Destination Number disallow Regex Validate Successfully.\n");
 	} else {// DP Destination Number Disallow regex is not set, so system will not check it.
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Destination Number [ %s ] Disallow Regex is not set, So system will not check it\n", dp->dp_id, destination_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Destination Number [ %s ] Disallow Regex is not set, So system will not check it\n", dp_id, destination_number);
 	}
 	
 	/**
@@ -939,14 +975,14 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 */
 	
 	if(!zstr(regex_master.allow_destination)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Destination Number [ %s ] allow Regex [ %s ]\n", dp->dp_id, destination_number, regex_master.allow_destination);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Check DIALPEER [ %s ] Destination Number [ %s ] allow Regex [ %s ]\n", dp_id, destination_number, regex_master.allow_destination);
 
 		/**
 		 * @Section validate Destination Number using FreeSWITCH regex.
 		 */
 		
 		regex_status = switch_allow_regex(session, channel, regex_master.allow_destination, destination_number);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp->dp_id, regex_status);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : DIALPEER [ %s ] Regex Status [ %s ]\n",dp_id, regex_status);
 
 		/**
 		 * @Section regext-status <false means failed> and <true means validate>
@@ -961,10 +997,10 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 			 */
 			
 			if(!strcasecmp(dp_route_hunt,"Y") ) {// DP Route Hunt is Enable
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp->dp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp_id);
 				return SWITCH_DIALPEER_FAILED;
 			} else {// DP Route Hunt is Disable
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Disable.\n", dp->dp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Disable.\n", dp_id);
 				return SWITCH_DIALPEER_SUCCESS;	
 			}
 		}
@@ -973,7 +1009,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 		switch_safe_free(regex_status);
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Destination Number allow Regex Validate Successfully.\n");
 	} else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Destination Number [ %s ] allow Regex is not set, So system will not check it.\n", dp->dp_id, destination_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : DIALPEER [ %s ] Destination Number [ %s ] allow Regex is not set, So system will not check it.\n", dp_id, destination_number);
 	}
 	
 	/**
@@ -981,10 +1017,10 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 */
 	
 	if(!zstr(regex_master.change_source)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Source Billing Number [ %s ] For DIALPEER [ %s ]\n", source_billing_number, dp->dp_id);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Destination Billing Number [ %s ] For DIALPEER [ %s ]\n", destination_billing_number, dp->dp_id);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Source Number [ %s ] Regex [ %s ] Manipulation.\n", dp->dp_id, source_number, regex_master.change_source);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before Regex Manipulation Source Number [ %s ]\n", dp->dp_id, source_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Source Billing Number [ %s ] For DIALPEER [ %s ]\n", source_billing_number, dp_id);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Destination Billing Number [ %s ] For DIALPEER [ %s ]\n", destination_billing_number, dp_id);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Source Number [ %s ] Regex [ %s ] Manipulation.\n", dp_id, source_number, regex_master.change_source);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before Regex Manipulation Source Number [ %s ]\n", dp_id, source_number);
 
 		tmp_num = strdup(source_number);
 		
@@ -999,19 +1035,19 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 			source_number = strdup(source_number);
 		}
 		
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Source Number : %s.\n", dp->dp_id,source_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Source Number : %s.\n", dp_id,source_number);
 	} else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DIALPEER [ %s ] Source Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp->dp_id, source_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DIALPEER [ %s ] Source Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp_id, source_number);
 	}
-	dp->sip_term_source_number = strdup(source_number);// For Termination Purpose
+	sip_term_source_number = strdup(source_number);// For Termination Purpose
 	
 	/**
 	 * @Section Destination Number Manipulation <DIALPEER>
 	 */
 	
 	if(!zstr(regex_master.change_destination)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Destination Number [ %s ] Regex [ %s ] Manipulation.\n", dp->dp_id, destination_number, regex_master.change_destination);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before regex manipulation destination_number : %s.\n", dp->dp_id,destination_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Destination Number [ %s ] Regex [ %s ] Manipulation.\n", dp_id, destination_number, regex_master.change_destination);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before regex manipulation destination_number : %s.\n", dp_id,destination_number);
 
 		tmp_num = strdup(destination_number);
 		
@@ -1025,20 +1061,20 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 		} else {
 			destination_number = strdup(destination_number);
 		}
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Destination Number : %s.\n", dp->dp_id,destination_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Destination Number : %s.\n", dp_id,destination_number);
 	} else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DIALPEER [ %s ] Destination Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp->dp_id, destination_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DIALPEER [ %s ] Destination Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp_id, destination_number);
 	}
 	
-	dp->sip_term_destination_number = strdup(destination_number);// For Termination Purpose
+	sip_term_destination_number = strdup(destination_number);// For Termination Purpose
 	
 	/**
 	 * @Section Source Billing Number Manipulation <DIALPEER>
 	 */
 	
 	if(!zstr(regex_master.change_bill_source)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Source Billing Number [ %s ] Regex [ %s ] Manipulation.\n", dp->dp_id, source_billing_number, regex_master.change_bill_source);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before regex manipulation Source Billin Number [ %s ].\n", dp->dp_id, source_billing_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Source Billing Number [ %s ] Regex [ %s ] Manipulation.\n", dp_id, source_billing_number, regex_master.change_bill_source);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before regex manipulation Source Billin Number [ %s ].\n", dp_id, source_billing_number);
 
 		tmp_num = strdup(source_billing_number);
 		
@@ -1052,9 +1088,9 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 		} else {
 			source_billing_number = strdup(source_billing_number);
 		}
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Source Billin Number [ %s ].\n", dp->dp_id, source_billing_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Source Billin Number [ %s ].\n", dp_id, source_billing_number);
 	} else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Source Billing Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp->dp_id, source_billing_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_NOTICE, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Source Billing Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp_id, source_billing_number);
 	}
 	
 	/**
@@ -1062,8 +1098,8 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	 */
 	
 	if(!zstr(regex_master.change_bill_destination)) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Destination Billing Number [ %s ] Regex [ %s ] Manipulation.\n", dp->dp_id, destination_billing_number, regex_master.change_bill_destination);
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before regex manipulation Destination Billin Number [ %s ].\n", dp->dp_id, destination_billing_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Destination Billing Number [ %s ] Regex [ %s ] Manipulation.\n", dp_id, destination_billing_number, regex_master.change_bill_destination);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Before regex manipulation Destination Billin Number [ %s ].\n", dp_id, destination_billing_number);
 		
 		tmp_num = strdup(destination_billing_number);
 		
@@ -1077,10 +1113,10 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 		} else {
 			destination_billing_number = strdup(destination_billing_number);
 		}
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Destination Billin Number [ %s ].\n", dp->dp_id, destination_billing_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] After Regex Manipulation Destination Billin Number [ %s ].\n", dp_id, destination_billing_number);
 		
 	} else {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Destination Billing Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp->dp_id, destination_billing_number);
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Destination Billing Number [ %s ] Manipulation Regex is not set, So system will not check it.\n", dp_id, destination_billing_number);
 	}
 	
 	/**
@@ -1101,7 +1137,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 	switch_channel_export_variable(channel, "vox_source_billing_number", source_billing_number, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
 	switch_channel_export_variable(channel, "vox_destination_billing_number", destination_billing_number, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
 
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Resource Limit Varification.\n", dp->dp_id);
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To DIALPEER [ %s ] Resource Limit Varification.\n", dp_id);
 	
 	/**
 	 * @Section Check Dialpeer Capacity Group MAX CPS in redis server.
@@ -1128,7 +1164,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 		
 		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
 			if(retval != 0) {
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : DIALPEER [ %s ] Capacity Group [ %s ] CPS Limit Exceeded\n", dp->dp_id, dp_cgp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : DIALPEER [ %s ] Capacity Group [ %s ] CPS Limit Exceeded\n", dp_id, dp_cgp_id);
 				switch_channel_set_variable(channel, "termination_string", "oe_cps_exceeded XML OE_CPS_EXCEEDED");
 				
 				/**
@@ -1191,7 +1227,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 				 */
 
 				if(!strcasecmp(dp_route_hunt,"Y") ) {
-					switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp->dp_id);
+					switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp_id);
 					return SWITCH_DIALPEER_FAILED;
 				} else {
 					switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : proceed for another dial peer if there is ?\n");
@@ -1227,11 +1263,11 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 		
 		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
 			if(retval != 0) {
-                                int limit_status = SWITCH_STATUS_SUCCESS;      /*! Limit Status */
-                                /*! release hiredis resource */
-                                limit_status = switch_limit_release("hiredis", session, globals.profile, idname);
-                                switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[ ORIGINATION ] : release [ %s ] [ %d ]\n", idname, limit_status);
-                                switch_safe_free(idname);
+				int limit_status = SWITCH_STATUS_SUCCESS;      /*! Limit Status */
+				/*! release hiredis resource */
+				limit_status = switch_limit_release("hiredis", session, globals.profile, idname);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[ ORIGINATION ] : release [ %s ] [ %d ]\n", idname, limit_status);
+				switch_safe_free(idname);
                                         
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : DIALPEER MAX Call Limit Exceeded\n");
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Proceed for next dial peer if available\n");
@@ -1296,7 +1332,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 		
 		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
 			if(retval != 0) {
-				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : DIALPEER [ %s ] Capacity Group [ %s ] Max Call Limit Exceeded\n", dp->dp_id,dp_cgp_id);
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : DIALPEER [ %s ] Capacity Group [ %s ] Max Call Limit Exceeded\n", dp_id,dp_cgp_id);
 				switch_channel_set_variable(channel, "termination_string", "cg_mc_exceeded XML CG_MC_EXCEEDED");
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Proceed For Next DIALPEER If Allowed\n");
 				
@@ -1305,7 +1341,7 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 				 */
 				
 				if(!strcasecmp(dp_route_hunt,"Y") ) {
-					switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp->dp_id);
+					switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Route Hunt is Enable.\n", dp_id);
 					return SWITCH_DIALPEER_FAILED;
 				} else {
 					switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : proceed for another dial peer if there is ?\n");
@@ -1313,20 +1349,20 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
 				}
 			}
 		} else {
-			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : Hiredis is unable to connect redis server [ %s ], DIALPEER [ %s ] Capacity Group [ %s ] MAX CALL is set for unlimited.\n",hiredis_raw_response, dp->dp_id, dp_cgp_id);
+			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_WARNING, "[AMAZE-DP] : Hiredis is unable to connect redis server [ %s ], DIALPEER [ %s ] Capacity Group [ %s ] MAX CALL is set for unlimited.\n",hiredis_raw_response, dp_id, dp_cgp_id);
 		}
 		switch_safe_free(idname);
 		switch_safe_free(hiredis_raw_response);
 	}
 	
-	dp->sip_equipment_type = strdup(dp_equip_type);
-	dp->flag = 1;
+	sip_equipment_type = strdup(dp_equip_type);
+	flag = 1;
         
         // Execute SIP Redirction Equipment Application    
-        if(!zstr(dp->sip_equipment_type) && !strcasecmp(dp->sip_equipment_type,"SIP_TERMINATION")) {
+        if(!zstr(sip_equipment_type) && !strcasecmp(sip_equipment_type,"SIP_TERMINATION")) {
                 char *sip_termination_data = NULL;
                 
-                sip_termination_data = switch_mprintf("%s,%s,%s,%s,SIP_TERMINATION", dp->sip_term_source_number, dp->sip_term_destination_number, dp->dp_id, dp->dp_balancing_method);
+                sip_termination_data = switch_mprintf("%s,%s,%s,%s,SIP_TERMINATION", sip_term_source_number, sip_term_destination_number, dp_id, dp_balancing_method);
                 
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : SIP Termination Equipment Data : \n%s\n", sip_termination_data);
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Proceed To Execute Termination Application\n");
@@ -1341,12 +1377,12 @@ static int dialpeer_callback_function(void *ptr, int argc, char **argv, char **c
                 
                switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Termination Application Execution done.\n");
                 
-        } else if(!zstr(dp->sip_equipment_type) && !strcasecmp(dp->sip_equipment_type,"SIP_REDIRECT")) {
+        } else if(!zstr(sip_equipment_type) && !strcasecmp(sip_equipment_type,"SIP_REDIRECT")) {
                 char *sip_termination_data = NULL;
                 
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : SIP Redirect Equipment [ redirection ] Application Called.\n");
                 
-                sip_termination_data = switch_mprintf("%s,%s,%s,%s,SIP_REDIRECT", dp->sip_term_source_number, dp->sip_term_destination_number, dp->dp_id, dp->dp_balancing_method);
+                sip_termination_data = switch_mprintf("%s,%s,%s,%s,SIP_REDIRECT", sip_term_source_number, sip_term_destination_number, dp_id, dp_balancing_method);
                 
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : SIP Redirection Equipment Data : \n%s\n", sip_termination_data);
                 switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : Proceed To Execute Redirection Application\n");
@@ -1377,10 +1413,10 @@ SWITCH_STANDARD_APP(switch_dialpeer_app)
 	switch_dial_peer_handler_st dp_handler;      /*! dialpeer handler */
 	
 	switch_channel_t *channel = switch_core_session_get_channel(session);      /*! Channel */
-            
-        char *redirection_to_dialpeer = NULL;
-        char *dp_id = NULL;
-
+	char *redirection_to_dialpeer = NULL;
+	char *dp_id = NULL;
+	int dialpeerTotal = 0, i = 0;
+	
 	/**
 	 * @Section Checking Channel validation
 	 */
@@ -1499,11 +1535,11 @@ SWITCH_STANDARD_APP(switch_dialpeer_app)
 	 * @Section Copy Data in dialpeer Handler
 	 */
 	
-	dp_handler.session = session;                                                      /*! Assigned Session */
-	dp_handler.source_number = strdup(original_source_number);                         /*! Copy Source Number */
-	dp_handler.destination_number = strdup(original_destination_number);               /*! Copy Destination Number */
-	dp_handler.source_billing_number = strdup(source_billing_number);                  /*! Copy Source Billing Number */
-	dp_handler.destination_billing_number = strdup(destination_billing_number);        /*! Copy Billing Destination Number */
+// 	dp_handler.session = session;                                                      /*! Assigned Session */
+	dp_handler.source_number[0] = strdup(original_source_number);                         /*! Copy Source Number */
+	dp_handler.destination_number[0] = strdup(original_destination_number);               /*! Copy Destination Number */
+	dp_handler.source_billing_number[0] = strdup(source_billing_number);                  /*! Copy Source Billing Number */
+	dp_handler.destination_billing_number[0] = strdup(destination_billing_number);        /*! Copy Billing Destination Number */
 
 	/**
 	 * @Section Proceed to Get dialpeer Information
@@ -1511,41 +1547,59 @@ SWITCH_STANDARD_APP(switch_dialpeer_app)
 	
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : Proceed To Get DIALPEER Which Are Mapped With Origination Equipment [ %s ]\n", originate_equip_id);
 
-        /*! Call From SIP Redirection application */    
-          if(!strcasecmp(redirection_to_dialpeer, "yes")) {
-                sql = switch_mprintf("SELECT distinct(c.dp_id), IF(isnull(c.dp_max_calls_sec),0,c.dp_max_calls_sec) as dp_max_calls_sec , IF(isnull(c.dp_max_calls),0,c.dp_max_calls) as dp_max_calls, c.dp_balancing_method, IF(isnull(c.cpg_id),0,c.cpg_id) as cpg_id, c.dp_equip_type,  c.dp_route_hunt,c.dp_priority FROM vca_dial_peer c WHERE  c.dp_status = 'Y' AND dp_id = '%s' And  UNIX_TIMESTAMP(NOW()) BETWEEN c.dp_start_date AND c.dp_end_date ORDER BY c.dp_priority, c.dp_id", dp_id);
-              
-              
-          } else {    /*! Call From SIP Origination application */    
+	/*! Call From SIP Redirection application */    
+	if(!strcasecmp(redirection_to_dialpeer, "yes")) {
+		sql = switch_mprintf("SELECT distinct(c.dp_id), IF(isnull(c.dp_max_calls_sec),0,c.dp_max_calls_sec) as dp_max_calls_sec , IF(isnull(c.dp_max_calls),0,c.dp_max_calls) as dp_max_calls, c.dp_balancing_method, IF(isnull(c.cpg_id),0,c.cpg_id) as cpg_id, c.dp_equip_type,  c.dp_route_hunt,c.dp_priority FROM vca_dial_peer c WHERE  c.dp_status = 'Y' AND dp_id = '%s' And  UNIX_TIMESTAMP(NOW()) BETWEEN c.dp_start_date AND c.dp_end_date ORDER BY c.dp_priority, c.dp_id", dp_id);
+	} else {    /*! Call From SIP Origination application */    
 		sql = switch_mprintf("SELECT distinct(c.dp_id), IF(isnull(c.dp_max_calls_sec),0,c.dp_max_calls_sec) as dp_max_calls_sec , IF(isnull(c.dp_max_calls),0,c.dp_max_calls) as dp_max_calls, c.dp_balancing_method, IF(isnull(c.cpg_id),0,c.cpg_id) as cpg_id, c.dp_equip_type,  c.dp_route_hunt,c.dp_priority FROM vca_orig_route_mapping a, vca_dial_routing_group_mapping b, vca_dial_peer c WHERE a.rg_id=b.rg_id AND b.dp_id=c.dp_id AND  a.orig_id = '%s' AND c.dp_status = 'Y' And  UNIX_TIMESTAMP(NOW()) BETWEEN c.dp_start_date AND c.dp_end_date ORDER BY c.dp_priority, c.dp_id", originate_equip_id);
-          }
+	}
 	
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-DP] : Origination Equipments [ %s ] DIALPEER information SQL : \n%s\n",originate_equip_id, sql);
+	
+//     memset(&dp_handler, 0, sizeof(dp_handler));
+	switch_mutex_lock(globals.mutex);
+	globals.count = 0;
+	
 	switch_execute_sql_callback(globals.mutex, sql, dialpeer_callback_function, &dp_handler);
+	
+	dialpeerTotal = globals.count;
+	globals.count = 0;
+	switch_mutex_unlock(globals.mutex);
+	
+	for(i = 0; i < dialpeerTotal ; i++) {
+		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DP ROUTING PROCESS\n");
+		
+		if (dialpeer_function(dp_handler.dp_id[i], dp_handler.dp_cgp_id[i], dp_handler.dp_route_hunt[i], dp_handler.source_number[i], dp_handler.destination_number[i], dp_handler.source_billing_number[i], dp_handler.destination_billing_number[i], dp_handler.sip_equipment_type[i], dp_handler.dp_max_cps[i], dp_handler.dp_max_calls[i], session, 0 ) == SWITCH_DIALPEER_SUCCESS) {
+			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-DP] : DP Matched and Routing Done.\n");
+			break;
+		}
+	}
+	
+	
 	
 	/**
 	 * @Section validate dialpeer information
 	 */
 	
-	if(dp_handler.flag != 1) {
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : Failed To Verify DIALPEER, So System Will Not Allow Dial This Call.\n");
-		switch_channel_set_variable(channel, "switch_hangup_code", "401");
-		switch_channel_set_variable(channel, "switch_hangup_reason", "CALL_REJECTED");
-		switch_channel_set_variable(channel, "termination_string", "SWITCH_HANGUP XML SWITCH_HANGUP");
-		
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : System Is Unable To Get Data From SQL : \n\n%s\n\n", sql);
-		
-		switch_safe_free(sql);
-		switch_channel_export_variable(channel, "cdr_call_flag", "1", SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
-		goto end;
-	}
-	switch_safe_free(sql);
+// 	if(dp_handler.flag != 1) {
+// 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : Failed To Verify DIALPEER, So System Will Not Allow Dial This Call.\n");
+// 		switch_channel_set_variable(channel, "switch_hangup_code", "401");
+// 		switch_channel_set_variable(channel, "switch_hangup_reason", "CALL_REJECTED");
+// 		switch_channel_set_variable(channel, "termination_string", "SWITCH_HANGUP XML SWITCH_HANGUP");
+// 		
+// 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-DP] : System Is Unable To Get Data From SQL : \n\n%s\n\n", sql);
+// 		
+// 		switch_safe_free(sql);
+// 		switch_channel_export_variable(channel, "cdr_call_flag", "1", SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
+// 		goto end;
+// 	}
+// 	switch_safe_free(sql);
 
 	/**
 	 * @Section Checking SIP Termination Equipment Type 
 	 */
 	
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Equipment Type Is [ %s ]\n", dp_handler.dp_id, dp_handler.sip_equipment_type);
+// 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-DP] : DIALPEER [ %s ] Equipment Type Is [ %s ]\n", dp_handler.dp_id, dp_handler.sip_equipment_type);
 	
 	/**
 	 * @Section SIP Redirect Equipment  
