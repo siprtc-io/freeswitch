@@ -3298,14 +3298,69 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_originate(switch_core_session_t *sess
 				if (oglobals.session) {
 					switch_ivr_parse_all_events(oglobals.session);
 				}
-
 				if (!oglobals.sent_ring && !oglobals.progress && (progress_timelimit_sec && elapsed > (time_t) progress_timelimit_sec)) {
-					oglobals.idx = IDX_TIMEOUT;
-					if (force_reason == SWITCH_CAUSE_NONE) {
-						force_reason = SWITCH_CAUSE_PROGRESS_TIMEOUT;
+				    const char *vox_orig_ring_tone = NULL;
+				    const char *isset_var = NULL;
+					const char *vox_pre_answer = NULL;
+				    vox_orig_ring_tone = switch_channel_get_variable(caller_channel, "vox_orig_ring_tone"); //check enable or not.
+				    isset_var = switch_channel_get_variable(caller_channel, "vox_ring_ready"); //set only first time.
+				    
+				    if(!zstr(isset_var)) {
+					    goto isset;
+				    }
+				    if(zstr(vox_orig_ring_tone)) {
+					    switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(oglobals.session), SWITCH_LOG_DEBUG, "FreeSWITCH default progress timeout.\n");
+					    
+					    oglobals.idx = IDX_TIMEOUT;
+					    if (force_reason == SWITCH_CAUSE_NONE) {
+						    force_reason = SWITCH_CAUSE_PROGRESS_TIMEOUT;
+					    }
+					    goto notready;
+				    }
+				    
+				    if(!strcmp(vox_orig_ring_tone, "yes")) {
+						vox_pre_answer = switch_channel_get_variable(caller_channel, "vox_pre_answer");
+						switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(oglobals.originate_status[i].peer_session), SWITCH_LOG_DEBUG, "vox_pre_answer : %s\n", vox_pre_answer);
+						
+						if(!strcmp(vox_pre_answer,"yes")) {
+							switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(oglobals.originate_status[i].peer_session), SWITCH_LOG_DEBUG, "Proceed For FreeSWITCH uuid pre_answer.\n");
+							
+							if (switch_channel_pre_answer(switch_core_session_get_channel(oglobals.originate_status[i].peer_session)) != SWITCH_STATUS_SUCCESS) {
+							  goto notready;
+							}
+							switch_channel_set_variable(switch_core_session_get_channel(oglobals.originate_status[i].peer_session), "vox_ring_ready", "yes");
+							  
+						} else if (!strcmp(vox_pre_answer,"no")) {
+							
+						  switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(oglobals.originate_status[i].peer_session), SWITCH_LOG_DEBUG, "Proceed For FreeSWITCH ring_ready.\n");
+							
+							switch_channel_ring_ready(switch_core_session_get_channel(oglobals.originate_status[i].peer_session));
+						}
+						switch_channel_set_variable(switch_core_session_get_channel(oglobals.originate_status[i].peer_session), "vox_ring_ready", "yes");
+						
+					} else {
+						  switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(oglobals.originate_status[i].peer_session), SWITCH_LOG_DEBUG, "Proceed For Get Next SIP Termination Equipment.\n");
+
+						  oglobals.idx = IDX_TIMEOUT;
+						  if (force_reason == SWITCH_CAUSE_NONE) {
+							  force_reason = SWITCH_CAUSE_PROGRESS_TIMEOUT;
+						  }
+						  
+						  goto notready;
 					}
-					goto notready;
+					isset:
+					;
 				}
+	
+				
+				
+// 				if (!oglobals.sent_ring && !oglobals.progress && (progress_timelimit_sec && elapsed > (time_t) progress_timelimit_sec)) {
+// 					oglobals.idx = IDX_TIMEOUT;
+// 					if (force_reason == SWITCH_CAUSE_NONE) {
+// 						force_reason = SWITCH_CAUSE_PROGRESS_TIMEOUT;
+// 					}
+// 					goto notready;
+// 				}
 
 				if ((to = (uint8_t) (elapsed >= (time_t) timelimit_sec)) || (fail_on_single_reject && oglobals.hups)) {
 					int ok = 0;
