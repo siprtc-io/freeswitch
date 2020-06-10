@@ -1447,7 +1447,7 @@ SWITCH_STANDARD_APP(switch_dialpeer_app)
 		goto end;
 	}
 	
-	switch_core_session_execute_exten(session, "EXPORT_VARS_ON_OTHERLEG" ,"XML" ,"EXPORT_VARS_ON_OTHERLEG");
+	//switch_core_session_execute_exten(session, "EXPORT_VARS_ON_OTHERLEG" ,"XML" ,"EXPORT_VARS_ON_OTHERLEG");
 	
 	/**
 	 * @Section Dialpeer Log on console
