@@ -712,7 +712,9 @@ static int switch_termination_callback(void *ptr, int argc, char **argv, char **
 	sipHandler->term_itu_prevent_call_reroute = strdup(argv[22]);         /*! SIP Termination Equipment ITUT Prevent Code Mapping */  
 	sipHandler->term_sip_call_retry = strdup(argv[23]);                   /*! SIP Termination Equipment SIP Retry Code Mapping */
 	sipHandler->term_itu_call_retry = strdup(argv[24]);                   /*! SIP Termination Equipment ITUT Retry Code Mapping */
-	sipHandler->term_desc = strdup(argv[25]); 
+	if(!zstr(argv[25])) {
+		sipHandler->term_desc = strdup(argv[25]); 
+	}
 	//After Remove Capacity Group as mandatory  
 	sipHandler->cpg_max_calls = 0;                           /*! SIP Termination Equipment Capacity Group MAX CALL */
 	sipHandler->cpg_max_calls_sec = 0;                       /*! SIP Termination Equipment Capacity Group MAX CPS */ 
