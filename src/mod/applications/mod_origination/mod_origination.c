@@ -86,6 +86,7 @@ struct origination_equipment_handler {
 	char *orig_max_sec;                             /*! ORIGINATION EQUIPMENT MAX CALL DURATION ALLOWED */
 	char *orig_codec_policy;                            /*! ORIGINATION EQUIPMENT CODEC POLICY */
 	char *orig_delay_bye_time;                          /*! ORIGINATION EQUIPMENT SEND SEND HANGUP DELAY TIME */
+	char *orig_desc;
 };
 typedef struct origination_equipment_handler origination_equipment_handler_st;
 
@@ -442,7 +443,7 @@ static int switch_originator_callback(void *ptr, int argc, char **argv, char **c
 	oe->af_id = atoi(argv[9]);                             /*! ORIGINATION EQUIPMENT RINGBACK FILE ID */
 	oe->orig_codec_policy = strdup(argv[10]);              /*! ORIGINATION EQUIPMENT CODEC POLICY */
 	oe->orig_delay_bye_time = strdup(argv[11]);            /*! ORIGINATION EQUIPMENT SEND BYE BY DELAY TIME */
-	
+	oe->orig_desc = strdup(argv[12]);            /*! ORIGINATION EQUIPMENT SEND BYE BY DELAY TIME */
 	return SWITCH_ORIGINATION_SUCCESS;
 }
 
@@ -853,7 +854,7 @@ SWITCH_STANDARD_APP(switch_origination_app)
 	 * @Query SELECT FROM origination equipment table.
 	 */
 
-	sql = switch_mprintf("SELECT orig_id, IF(isnull(orig_max_call_dur),0,orig_max_call_dur) as orig_max_call_dur, (IF(isnull(orig_wait_time_answer),0,orig_wait_time_answer)/1000) as orig_wait_time_answer, (IF(isnull(orig_wait_time_rbt),0,orig_wait_time_rbt)/1000) as orig_wait_time_rbt, IF(isnull(orig_session_time),0,orig_session_time) as orig_session_time, IF(isnull(orig_rtp_time),0,orig_rtp_time) as orig_rtp_time, group_id, orig_sip_header, orig_ring_tone, af_id, orig_codec_policy, IF(isnull(orig_delay_bye_time),0,orig_delay_bye_time*1000) as delay_bye_usec FROM vca_orig_equipment WHERE orig_id = '%s' AND orig_status = 'Y'", oequip_id);
+	sql = switch_mprintf("SELECT orig_id, IF(isnull(orig_max_call_dur),0,orig_max_call_dur) as orig_max_call_dur, (IF(isnull(orig_wait_time_answer),0,orig_wait_time_answer)/1000) as orig_wait_time_answer, (IF(isnull(orig_wait_time_rbt),0,orig_wait_time_rbt)/1000) as orig_wait_time_rbt, IF(isnull(orig_session_time),0,orig_session_time) as orig_session_time, IF(isnull(orig_rtp_time),0,orig_rtp_time) as orig_rtp_time, group_id, orig_sip_header, orig_ring_tone, af_id, orig_codec_policy, IF(isnull(orig_delay_bye_time),0,orig_delay_bye_time*1000) as delay_bye_usec,orig_desc FROM vca_orig_equipment WHERE orig_id = '%s' AND orig_status = 'Y'", oequip_id);
 	
 	switch_execute_sql_callback(globals.mutex, sql, switch_originator_callback, &originator);
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-OE] : Originate Equipment Information SQL : \n%s\n", sql);
@@ -875,6 +876,7 @@ SWITCH_STANDARD_APP(switch_origination_app)
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-OE] : Origination Equipment [ %s ] Delay Bye Time is [ %s ] useconds\n",oequip_id, originator.orig_delay_bye_time); 
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-OE] : Origination Equipment [ %s ] if call will terminate by originator than bleg will be Hangup after [ %s ] useconds.\n", oequip_id, originator.orig_delay_bye_time); 
 
+	switch_channel_export_variable(channel, "orig_desc", originator.orig_desc, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
 	switch_channel_export_variable(channel, "vox_delay_bye_time", originator.orig_delay_bye_time, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
 	switch_channel_set_variable(channel, "sip_bye_h_FROMBLEG", originator.orig_delay_bye_time);
 	
