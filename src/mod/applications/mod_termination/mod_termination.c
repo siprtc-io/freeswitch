@@ -127,7 +127,7 @@ struct sip_termination_equipment_handler
 	char *term_sip_call_retry;               /*! SIP Termination Equipment SIP Prevent Call Reroute */
 	char *term_itu_call_retry;               /*! SIP Termination Equipment ITUT Prevent Call Reroute */ 
 	char *term_zone_id;                      /*! SIP Termination Equipment Zone ID */
-
+	char *term_desc;
 	int term_max_calls;                      /*! SIP Termination Equipment Max Call Limit */ 
 	int term_max_calls_sec;                  /*! SIP Termination Equipment Max Call Duration */
 	int term_max_retry;                      /*! SIP Termination Equipment Max Retry */
@@ -712,7 +712,7 @@ static int switch_termination_callback(void *ptr, int argc, char **argv, char **
 	sipHandler->term_itu_prevent_call_reroute = strdup(argv[22]);         /*! SIP Termination Equipment ITUT Prevent Code Mapping */  
 	sipHandler->term_sip_call_retry = strdup(argv[23]);                   /*! SIP Termination Equipment SIP Retry Code Mapping */
 	sipHandler->term_itu_call_retry = strdup(argv[24]);                   /*! SIP Termination Equipment ITUT Retry Code Mapping */
-	
+	sipHandler->term_desc = strdup(argv[25]); 
 	//After Remove Capacity Group as mandatory  
 	sipHandler->cpg_max_calls = 0;                           /*! SIP Termination Equipment Capacity Group MAX CALL */
 	sipHandler->cpg_max_calls_sec = 0;                       /*! SIP Termination Equipment Capacity Group MAX CPS */ 
@@ -1887,7 +1887,7 @@ static int switch_manage_termination_equipment(int term_id, switch_channel_t *ch
 	 * @Query To Get SIP Termination Equipment info 
 	 */
 
-	sql = switch_mprintf("SELECT a.term_id, IF(isnull(a.term_max_call_dur),0,a.term_max_call_dur) as term_max_call_dur , IF(isnull(a.term_max_calls),0,a.term_max_calls) as term_max_calls ,IF(isnull(a.term_max_calls_sec),0,a.term_max_calls_sec) as term_max_calls_sec, (IF(isnull(a.term_progress_timeout),0,a.term_progress_timeout)/1000) as term_progress_timeout, IF(isnull(term_progress_timeout_action),NULL, term_progress_timeout_action) as term_progress_timeout_action, IF(isnull(a.term_session_time),0,a.term_session_time) as term_session_time , IF(isnull(a.term_rtp_time),0,a.term_rtp_time) as term_rtp_time, IF(isnull(a.term_max_retry),0,a.term_max_retry) as term_max_retry, IF(isnull(a.term_retry_time),0,a.term_retry_time) as term_retry_time, a.group_id, IF(isnull(a.cpg_id),0,a.cpg_id) as cpg_id, a.term_media_proxy, a.term_privacy_method, a.term_codec_policy, a.term_source_number_type, a.term_source_number_plan, a.term_signal_ip, a.term_signal_port, a.term_sip_call_reroute, a.term_itu_call_reroute, a.term_sip_prevent_call_reroute, a.term_itu_prevent_call_reroute, a.term_sip_call_retry, a.term_itu_call_retry FROM vca_term_equipment a  WHERE a.term_id='%d' AND UNIX_TIMESTAMP(NOW()) BETWEEN a.term_start_date AND a.term_end_date AND a.term_status='Y'", term_id);
+	sql = switch_mprintf("SELECT a.term_id, IF(isnull(a.term_max_call_dur),0,a.term_max_call_dur) as term_max_call_dur , IF(isnull(a.term_max_calls),0,a.term_max_calls) as term_max_calls ,IF(isnull(a.term_max_calls_sec),0,a.term_max_calls_sec) as term_max_calls_sec, (IF(isnull(a.term_progress_timeout),0,a.term_progress_timeout)/1000) as term_progress_timeout, IF(isnull(term_progress_timeout_action),NULL, term_progress_timeout_action) as term_progress_timeout_action, IF(isnull(a.term_session_time),0,a.term_session_time) as term_session_time , IF(isnull(a.term_rtp_time),0,a.term_rtp_time) as term_rtp_time, IF(isnull(a.term_max_retry),0,a.term_max_retry) as term_max_retry, IF(isnull(a.term_retry_time),0,a.term_retry_time) as term_retry_time, a.group_id, IF(isnull(a.cpg_id),0,a.cpg_id) as cpg_id, a.term_media_proxy, a.term_privacy_method, a.term_codec_policy, a.term_source_number_type, a.term_source_number_plan, a.term_signal_ip, a.term_signal_port, a.term_sip_call_reroute, a.term_itu_call_reroute, a.term_sip_prevent_call_reroute, a.term_itu_prevent_call_reroute, a.term_sip_call_retry, a.term_itu_call_retry,a.term_desc FROM vca_term_equipment a  WHERE a.term_id='%d' AND UNIX_TIMESTAMP(NOW()) BETWEEN a.term_start_date AND a.term_end_date AND a.term_status='Y'", term_id);
 
 	
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-TE] : SIP Termination Equipment SQL : \n%s\n", sql);
@@ -1911,6 +1911,9 @@ static int switch_manage_termination_equipment(int term_id, switch_channel_t *ch
 		goto end;
 	}
 	
+	if(!zstr(sip_handler.term_desc)) {
+		switch_channel_export_variable(channel, "term_desc", sip_handler.term_desc, SWITCH_BRIDGE_EXPORT_VARS_VARIABLE);
+	}
 	/*! Log */
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "[AMAZE-TE] : Proceed To SIP Termination Equipment [ %d ] Resource Limit Varification.\n", term_id);
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "[AMAZE-TE] : SIP Termination Equipment [ %d ] Capacity Group < MAX CPS > varifying.\n", term_id);
