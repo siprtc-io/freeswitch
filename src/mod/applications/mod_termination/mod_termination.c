@@ -1936,11 +1936,11 @@ static int switch_manage_termination_equipment(int term_id, switch_channel_t *ch
 		retval = switch_check_resource_limit("hiredis", session, globals.profile, idname,  sip_handler.cpg_max_calls_sec, 1, "SIP_TERM_CPS_EXCEEDED"); 
 		
 		/*! Hiredis Resource Key */
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-TE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
 		
 		/*! SIP Termination Equipment resource validation */
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if((!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			if(retval != 0) {
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-TE] : SIP Termination Equipment [ %d ] Capacity Group CPS Limit Exceeded\n", term_id);
 				switch_channel_set_variable(channel, "dialout_string", "sip_term_cps_exceeded XML SIP_TERM_CPS_EXCEEDED");
@@ -1974,10 +1974,10 @@ static int switch_manage_termination_equipment(int term_id, switch_channel_t *ch
 
 		/*! Checking Resource limit */
 		retval = switch_check_resource_limit("hiredis", session, globals.profile, idname,  sip_handler.term_max_calls_sec, 1, "SIP_TERM_EQUIP_CPS_EXCEEDED");
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-TE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
 		
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if((!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			if(retval != 0) {
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-TE] : SIP Terminator Equipment [ %d ] CPS Limit Exceeded\n", term_id);
 				switch_channel_set_variable(channel, "dialout_string", "sip_term_equip_cps_exceeded XML SIP_TERM_EQUIP_CPS_EXCEEDED");
@@ -2013,9 +2013,9 @@ static int switch_manage_termination_equipment(int term_id, switch_channel_t *ch
 		int retval = switch_check_resource_limit("hiredis", session, globals.profile, idname,  sip_handler.term_max_calls, 0, "SIP_TERM_EQUIP_MC_EXCEEDED");
 
 		/*! Checking hiredis response */
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-TE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if((!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			if(retval != 0) {
                                 int limit_status = SWITCH_STATUS_SUCCESS;
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-TE] : SIP Termination Equipment [ %d ] Max Call Limit Exceeded\n", term_id);
@@ -2059,11 +2059,11 @@ static int switch_manage_termination_equipment(int term_id, switch_channel_t *ch
 		 */
 		
 		retval = switch_check_resource_limit("hiredis", session, globals.profile, idname,  sip_handler.cpg_max_calls, 0, "CG_CPS_EXCEEDED");
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-TE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
 		
 		/*! Hiredis Response */
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if((!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			if(retval != 0) {
                                 int limit_status = SWITCH_STATUS_SUCCESS;
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-TE] : SIP Terminator Equipment [ %d ] Capacity Group [ %d ] CALL Limit Exceeded\n", term_id, sip_handler.term_cpg_id);
@@ -2858,12 +2858,12 @@ SWITCH_STANDARD_API(switch_custom_api)
 	stream->write_function(stream, "mydata:%s\n", mydata);
 	argc = switch_separate_string(mydata, ' ', argv, sizeof(argv)/sizeof(argv[0]));
 	if(argc < 1) {
-		stream->write_function(stream, "[ ORIGINATION ] : Invalide arguments\n");
+		stream->write_function(stream, "[AMAZE-TE] : Invalide arguments\n");
 		return SWITCH_STATUS_TERM;
 	}
 
 	function = switch_mprintf("%s", argv[0]);
-	stream->write_function(stream, "[ ORIGINATION ] : Proceed For [ %s ]\n", function);
+	stream->write_function(stream, "[AMAZE-TE] : Proceed For [ %s ]\n", function);
 	
 	if(!zstr(function) && !strcmp(function, "UPDATE_DEFAULT_MAX_CALL_DURATION")) {
 		globals.default_max_call_dur = strdup(argv[1]);
@@ -2936,5 +2936,4 @@ SWITCH_MODULE_SHUTDOWN_FUNCTION(mod_termination_shutdown)
 
 // End Header Guard.
 #endif
-
 
