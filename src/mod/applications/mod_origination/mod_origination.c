@@ -651,10 +651,10 @@ SWITCH_STANDARD_APP(switch_origination_app)
 		retval = switch_check_resource_limit("hiredis", session, globals.profile, idname, atoi(capacity_gp_cps), 1, "CAPACITY_GP_CPS_EXCEEDED"); 
 	
 		//get hiredis response from hiredis module.
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-OE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
 
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if( (!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			switch_safe_free(idname);
 			if(retval != 0) {
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-OE] : Origination Equipment [ %s ] Capacity Group [ %s ] MAX CPS is Exceeded\n", oequip_id, capacity_gp_id);
@@ -697,10 +697,10 @@ SWITCH_STANDARD_APP(switch_origination_app)
 		retval = switch_check_resource_limit("hiredis", session, globals.profile, idname,  atoi(capacity_gp_mc), 0, "CG_MC_EXCEEDED");
 
 		//get hiredis response from hiredis module.
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-OE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
 
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if( (!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			if(retval != 0) {
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-OE] : Originate Equipment [ %s ] Capacity Group [ %s ] Max Call Limit Exceeded\n", oequip_id,capacity_gp_id);
 				switch_channel_set_variable(channel, "transfer_string", "CG_MC_EXCEEDED XML CG_MC_EXCEEDED");
@@ -747,14 +747,14 @@ SWITCH_STANDARD_APP(switch_origination_app)
 		retval = switch_check_resource_limit("hiredis", session, globals.profile, idname,  atoi(oequip_cps), 1, "CHECK_ORIG_EQUIPMENT_CPS"); 
 		
 		//get hiredis response from hiredis module.
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-OE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
 
 		/**
 		 * @section maxcps validation
 		 */
 		
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if( (!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			  
 			  if(retval != 0) {
 				  switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-OE] : Originate Equipment [ %s ]  CPS Limit Exceeded\n", oequip_id);
@@ -800,14 +800,14 @@ SWITCH_STANDARD_APP(switch_origination_app)
 		retval = switch_check_resource_limit("hiredis", session, globals.profile, idname,  atoi(oequip_mc), 0, "CHECK_ORIG_EQUIPMENT_MC"); 
 		
 		//get hiredis response from hiredis module.
-		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "vox_hiredis_response"));
+		hiredis_raw_response = switch_mprintf("%s",switch_channel_get_variable(channel, "hiredis_raw_response"));
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG5, "[AMAZE-OE] : hiredis_raw_response : %s\n",hiredis_raw_response); 
 		
 		/**
 		 * @section maxcall validation
 		 */
 		
-		if((strlen(hiredis_raw_response)>0 && !strcasecmp(hiredis_raw_response, "success") )) {
+		if( (!zstr(hiredis_raw_response)) && (strlen(hiredis_raw_response)>0 )) {
 			if(retval != 0) {
 				int limit_status = SWITCH_STATUS_SUCCESS;      /*! Limit Status */
 				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "[AMAZE-OE] : Originate Equipment [ %s ] Max Call Limit Exceeded\n", oequip_id);
@@ -1526,5 +1526,4 @@ SWITCH_MODULE_SHUTDOWN_FUNCTION(mod_origination_shutdown)
 
 // End Header Guard.
 #endif
-
 
